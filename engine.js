@@ -96,10 +96,10 @@ let wall = {
 };
 
 let oldTree = {
-  x: 200,
+  x: 400,
   y: 300,
-  width: 20,
-  height: 100,
+  width: 10,
+  height: 10,
   color: 'brown'
 }
 
@@ -110,10 +110,10 @@ const DialogueManager = {
   currentLine: 0,
   currentChar: 0,
   visible: false,
-  x: 50,
-  y: 300,
-  width: 400,
-  height: 100,
+  x: 100,
+  y: 400,
+  width: 600,
+  height: 150,
   font: "16px serif",
   speed: 30,
   lastCharTime: 0,
