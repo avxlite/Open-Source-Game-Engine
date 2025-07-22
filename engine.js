@@ -5,8 +5,19 @@ const ctx = canvas.getContext('2d');
 
 // === Input ===
 const keys = {};
-window.addEventListener('keydown', e => keys[e.key] = true);
-window.addEventListener('keyup', e => keys[e.key] = false);
+const keyJustPressed = {};
+
+window.addEventListener("keydown", (e) => {
+  if (!keys[e.key]) {
+    keyJustPressed[e.key] = true; // only fires if key wasn't already down
+  }
+  keys[e.key] = true;
+});
+
+window.addEventListener("keyup", (e) => {
+  keys[e.key] = false;
+});
+
 
 // === Game Loop ===
 let lastTime = 0;
@@ -42,6 +53,29 @@ playerImage.onload = () => {
 }
 
 
+
+// === Dfine the dialogues ===
+
+const dialogues = {
+  wall: [
+    "This is a wall.",
+    "You just tried to talk to a wall.",
+    "You okay, champ?",
+  ],
+
+  oldTree: [
+    "This is one very old tree.",
+    "Local folktales say it's been here for 700 years.",
+    "...",
+    "I'll remember this. It might help later.",
+  ],
+};
+
+
+
+
+
+
 // === Define the objects ===
 
 let playerValues ={
@@ -61,7 +95,87 @@ let wall = {
   color: 'red'
 };
 
+let oldTree = {
+  x: 200,
+  y: 300,
+  width: 20,
+  height: 100,
+  color: 'brown'
+}
+
 // === functions ===
+
+const DialogueManager = {
+  lines: [],
+  currentLine: 0,
+  currentChar: 0,
+  visible: false,
+  x: 50,
+  y: 300,
+  width: 400,
+  height: 100,
+  font: "16px serif",
+  speed: 30,
+  lastCharTime: 0,
+  onComplete: null,
+
+  start(lines, onComplete = () => {}) {
+    this.lines = lines;
+    this.currentLine = 0;
+    this.currentChar = 0;
+    this.visible = true;
+    this.onComplete = onComplete;
+  },
+
+  update(time) {
+    if (!this.visible) return;
+    if (time - this.lastCharTime > this.speed) {
+      this.currentChar++;
+      this.lastCharTime = time;
+      if (this.currentChar > this.lines[this.currentLine].length) {
+        this.currentChar = this.lines[this.currentLine].length;
+      }
+    }
+  },
+
+  draw() {
+    if (!this.visible) return;
+    ctx.fillStyle = "black";
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.strokeStyle = "white";
+    ctx.strokeRect(this.x, this.y, this.width, this.height);
+    ctx.font = this.font;
+    ctx.fillStyle = "white";
+    ctx.fillText(
+      this.lines[this.currentLine].substring(0, this.currentChar),
+      this.x + 10,
+      this.y + 30
+    );
+  },
+
+  nextLine() {
+    if (!this.visible) return;
+    if (this.currentChar < this.lines[this.currentLine].length) {
+      this.currentChar = this.lines[this.currentLine].length;
+    } else if (this.currentLine < this.lines.length - 1) {
+      this.currentLine++;
+      this.currentChar = 0;
+    } else {
+      this.visible = false;
+      this.onComplete?.();
+    }
+  },
+};
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    DialogueManager.nextLine();
+  }
+});
+
+
+
+
 
 function isColliding(a, b) {
   return (
@@ -93,22 +207,45 @@ function drawCharBody(char) {
 
 
 
+function resetInputFlags() {
+  for (let key in keyJustPressed) {
+    keyJustPressed[key] = false;
+  }
+}
+
+
 
 // === Rendering functions ===
 
 function update(dt) {
-  moveBody('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', playerValues, dt);
+  if (DialogueManager.visible) return; // freeze player movement
+  moveBody("ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", playerValues, dt);
 
-  if (isColliding(playerValues, wall)) {console.log('Collision detected!');}
+  if (isColliding(playerValues, wall) && keyJustPressed["z"]) {
+    console.log("Collision detected!");
+    DialogueManager.start(dialogues.wall);
+  }
 
+  if (isColliding(playerValues, oldTree) && keyJustPressed["z"]) {
+    console.log("You found an old tree!");
+    DialogueManager.start(dialogues.oldTree);
+  }
+
+  resetInputFlags();
 }
 
-
-function draw() {
+function draw(time = performance.now()) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   drawCharImage(playerValues, playerImage);
   drawCharBody(wall);
+  drawCharBody(oldTree);
+
+
+
+
+  DialogueManager.update(time);
+  DialogueManager.draw();
 }
 
 // === Go! ===
