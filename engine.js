@@ -72,6 +72,16 @@ function gameLoop(time = 0) {
 
 ||||||||||||||||||||||||||*/
 
+// === Global variables ===
+
+let hasPushedWall = false;
+let hasPickedUpScissors = false;
+
+
+
+
+
+
  // === Defining the images ===
 
 const playerImage = new Image();
@@ -93,10 +103,33 @@ playerImage.onload = () => {
 // === Dfine the dialogues ===
 
 const dialogues = {
-  wall: [
-    "This is a wall.",
-    "You just tried to talk to a wall.",
-    "You okay, champ?",
+  wall_beforePush: [
+    "You sense something behind this wall...",
+    {
+      question: "Push it?",
+      options: [
+        {
+          text: "Yes",
+          consequence: () => {
+            console.log("Secret door opens!");
+            hasPushedWall = true;
+          },
+        },
+        {
+          text: "No",
+          consequence: () => {
+            console.log("You step back.");
+          },
+        },
+      ],
+    },
+    "Interesting choice.",
+  ],
+
+  wall_afterPush: [
+    "You've already pushed it.",
+    "The secret door creaks in the distance.",
+    "Maybe... it's still open?",
   ],
 
   oldTree: [
@@ -105,7 +138,36 @@ const dialogues = {
     "...",
     "I'll remember this. It might help later.",
   ],
+
+  scissors: [
+    "You found a pair of scissors!",
+    "They look sharp and useful.",
+    "Maybe you can use them to cut something later.",
+    {
+      question: "Keep them?",
+      options: [
+        {
+          text: "Yes",
+          consequence: () => {
+            hasPickedUpScissors = true;
+          },
+        },
+        {
+          text: "No",
+          consequence: () => {
+            console.log("You step back.");
+          },
+        },
+      ],
+    },
+  ],
+
+  scissors_afterTake: [
+    "You already have the scissors.",
+  ],
 };
+
+
 
 
 
@@ -138,6 +200,39 @@ let oldTree = {
   height: 10,
   color: 'brown'
 }
+
+let scissors = {
+  x: 700,
+  y: 150,
+  width: 10,
+  height: 10,
+  color: 'blue'
+}
+
+
+// === Define the interactions ===
+
+const interactions = [
+  {
+    object: wall,
+    dialogue: () =>
+      hasPushedWall ? dialogues.wall_afterPush : dialogues.wall_beforePush,
+    condition: () => true, // Always interactable
+  },
+  {
+    object: oldTree,
+    dialogue: () => dialogues.oldTree,
+    condition: () => true,
+  },
+  {
+    object: scissors,
+    dialogue: () => hasPickedUpScissors ? dialogues.scissors_afterTake : dialogues.scissors,
+    condition: () => !hasPickedUpScissors, // Only interactable if not picked up
+  }
+];
+
+
+
 
 // === functions ===
 
@@ -273,40 +368,22 @@ function resetInputFlags() {
 // === Rendering functions ===
 
 function update(dt) {
-  if (DialogueManager.visible) return; // freeze player movement
-  moveBody("ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", playerValues, dt);
+if (DialogueManager.visible) return;
 
-  if (isColliding(playerValues, wall) && keyJustPressed["z"]) {
-    DialogueManager.start([
-      "You sense something behind this wall...",
-      {
-        question: "Push it?",
-        options: [
-          {
-            text: "Yes",
-            consequence: () => {
-              console.log("Secret door opens!");
-            },
-          },
-          {
-            text: "No",
-            consequence: () => {
-              console.log("You step back.");
-            },
-          },
-        ],
-      },
-      "Interesting choice.",
-    ]);
+moveBody("ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", playerValues, dt);
+
+for (let inter of interactions) {
+  if (
+    isColliding(playerValues, inter.object) &&
+    keyJustPressed["z"] &&
+    inter.condition()
+  ) {
+    DialogueManager.start(inter.dialogue());
+    break;
   }
+}
 
-
-  if (isColliding(playerValues, oldTree) && keyJustPressed["z"]) {
-    console.log("You found an old tree!");
-    DialogueManager.start(dialogues.oldTree);
-  }
-
-  resetInputFlags();
+resetInputFlags();
 }
 
 function draw(time = performance.now()) {
@@ -315,6 +392,7 @@ function draw(time = performance.now()) {
   drawCharImage(playerValues, playerImage);
   drawCharBody(wall);
   drawCharBody(oldTree);
+  drawCharBody(scissors);
 
 
 
