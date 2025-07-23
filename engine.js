@@ -111,19 +111,24 @@ const dialogues = {
         {
           text: "Yes",
           consequence: () => {
-            console.log("Secret door opens!");
             hasPushedWall = true;
+            DialogueManager.insertAfterCurrent([
+              "You push it with all your strength.",
+              "A secret passage creaks open!",
+            ]);
           },
         },
         {
           text: "No",
           consequence: () => {
-            console.log("You step back.");
+            DialogueManager.insertAfterCurrent([
+              "You decide to leave it alone... for now.",
+              "...",
+            ]);
           },
         },
       ],
     },
-    "Interesting choice.",
   ],
 
   wall_afterPush: [
@@ -150,21 +155,24 @@ const dialogues = {
           text: "Yes",
           consequence: () => {
             hasPickedUpScissors = true;
+            DialogueManager.insertAfterCurrent([
+              "You have acquired the scissors.",
+            ]);
           },
         },
         {
           text: "No",
           consequence: () => {
-            console.log("You step back.");
+            DialogueManager.insertAfterCurrent([
+              "Alex: Nah, I dont need them.",
+            ]);
           },
         },
       ],
     },
   ],
 
-  scissors_afterTake: [
-    "You already have the scissors.",
-  ],
+  scissors_afterTake: ["You already have the scissors."],
 };
 
 
@@ -226,7 +234,7 @@ const interactions = [
   },
   {
     object: scissors,
-    dialogue: () => hasPickedUpScissors ? dialogues.scissors_afterTake : dialogues.scissors,
+    dialogue: () => hasPickedUpScissors ? dialogues.scissors_afterTake : dialogues.scissors,   // this line is pretty useless
     condition: () => !hasPickedUpScissors, // Only interactable if not picked up
   }
 ];
@@ -251,7 +259,6 @@ const DialogueManager = {
   onComplete: null,
   selectedOptionIndex: 0,
 
-
   start(lines, onComplete = () => {}) {
     this.lines = lines;
     this.currentLine = 0;
@@ -262,50 +269,44 @@ const DialogueManager = {
 
   update(time) {
     if (!this.visible) return;
-const current = this.lines[this.currentLine];
-if (typeof current === "string") {
-  if (time - this.lastCharTime > this.speed) {
-    this.currentChar++;
-    this.lastCharTime = time;
-    if (this.currentChar > current.length) {
-      this.currentChar = current.length;
+    const current = this.lines[this.currentLine];
+    if (typeof current === "string") {
+      if (time - this.lastCharTime > this.speed) {
+        this.currentChar++;
+        this.lastCharTime = time;
+        if (this.currentChar > current.length) {
+          this.currentChar = current.length;
+        }
+      }
     }
-  }
-}
-
   },
 
- draw() {
-  if (!this.visible) return;
+  draw() {
+    if (!this.visible) return;
 
-  ctx.fillStyle = "black";
-  ctx.fillRect(this.x, this.y, this.width, this.height);
-  ctx.strokeStyle = "white";
-  ctx.strokeRect(this.x, this.y, this.width, this.height);
-  ctx.font = this.font;
-  ctx.fillStyle = "white";
+    ctx.fillStyle = "black";
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.strokeStyle = "white";
+    ctx.strokeRect(this.x, this.y, this.width, this.height);
+    ctx.font = this.font;
+    ctx.fillStyle = "white";
 
-  const current = this.lines[this.currentLine];
+    const current = this.lines[this.currentLine];
 
-  if (typeof current === "string") {
-    ctx.fillText(
-      current.substring(0, this.currentChar),
-      this.x + 10,
-      this.y + 30
-    );
-  } else if (current.question) {
-    ctx.fillText(current.question, this.x + 10, this.y + 30);
-    current.options.forEach((opt, idx) => {
-      const prefix = this.selectedOptionIndex === idx ? "> " : "  ";
+    if (typeof current === "string") {
       ctx.fillText(
-        prefix + opt.text,
+        current.substring(0, this.currentChar),
         this.x + 10,
-        this.y + 60 + idx * 20
+        this.y + 30
       );
-    });
-  }
-},
-
+    } else if (current.question) {
+      ctx.fillText(current.question, this.x + 10, this.y + 30);
+      current.options.forEach((opt, idx) => {
+        const prefix = this.selectedOptionIndex === idx ? "> " : "  ";
+        ctx.fillText(prefix + opt.text, this.x + 10, this.y + 60 + idx * 20);
+      });
+    }
+  },
 
   nextLine() {
     if (!this.visible) return;
@@ -318,6 +319,9 @@ if (typeof current === "string") {
       this.visible = false;
       this.onComplete?.();
     }
+  },
+  insertAfterCurrent(newLines) {
+    this.lines.splice(this.currentLine + 1, 0, ...newLines);
   },
 };
 
