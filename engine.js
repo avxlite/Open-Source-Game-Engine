@@ -18,6 +18,42 @@ window.addEventListener("keyup", (e) => {
   keys[e.key] = false;
 });
 
+window.addEventListener("keydown", (e) => {
+  if (!DialogueManager.visible) return;
+
+  const current = DialogueManager.lines[DialogueManager.currentLine];
+
+  if (typeof current === "string") {
+    if (e.key === "Enter") DialogueManager.nextLine();
+  } else if (current.question) {
+    if (e.key === "ArrowDown") {
+      DialogueManager.selectedOptionIndex =
+        (DialogueManager.selectedOptionIndex + 1) % current.options.length;
+    }
+    if (e.key === "ArrowUp") {
+      DialogueManager.selectedOptionIndex =
+        (DialogueManager.selectedOptionIndex - 1 + current.options.length) %
+        current.options.length;
+    }
+    if (e.key === "Enter") {
+      // Trigger the selected consequence
+      const chosen = current.options[DialogueManager.selectedOptionIndex];
+      if (chosen.consequence) chosen.consequence();
+
+      // Advance
+      DialogueManager.currentLine++;
+      DialogueManager.currentChar = 0;
+      DialogueManager.selectedOptionIndex = 0;
+
+      if (DialogueManager.currentLine >= DialogueManager.lines.length) {
+        DialogueManager.visible = false;
+        if (DialogueManager.onComplete) DialogueManager.onComplete();
+      }
+    }
+  }
+});
+
+
 
 // === Game Loop ===
 let lastTime = 0;
@@ -118,6 +154,8 @@ const DialogueManager = {
   speed: 30,
   lastCharTime: 0,
   onComplete: null,
+  selectedOptionIndex: 0,
+
 
   start(lines, onComplete = () => {}) {
     this.lines = lines;
@@ -129,29 +167,50 @@ const DialogueManager = {
 
   update(time) {
     if (!this.visible) return;
-    if (time - this.lastCharTime > this.speed) {
-      this.currentChar++;
-      this.lastCharTime = time;
-      if (this.currentChar > this.lines[this.currentLine].length) {
-        this.currentChar = this.lines[this.currentLine].length;
-      }
+const current = this.lines[this.currentLine];
+if (typeof current === "string") {
+  if (time - this.lastCharTime > this.speed) {
+    this.currentChar++;
+    this.lastCharTime = time;
+    if (this.currentChar > current.length) {
+      this.currentChar = current.length;
     }
+  }
+}
+
   },
 
-  draw() {
-    if (!this.visible) return;
-    ctx.fillStyle = "black";
-    ctx.fillRect(this.x, this.y, this.width, this.height);
-    ctx.strokeStyle = "white";
-    ctx.strokeRect(this.x, this.y, this.width, this.height);
-    ctx.font = this.font;
-    ctx.fillStyle = "white";
+ draw() {
+  if (!this.visible) return;
+
+  ctx.fillStyle = "black";
+  ctx.fillRect(this.x, this.y, this.width, this.height);
+  ctx.strokeStyle = "white";
+  ctx.strokeRect(this.x, this.y, this.width, this.height);
+  ctx.font = this.font;
+  ctx.fillStyle = "white";
+
+  const current = this.lines[this.currentLine];
+
+  if (typeof current === "string") {
     ctx.fillText(
-      this.lines[this.currentLine].substring(0, this.currentChar),
+      current.substring(0, this.currentChar),
       this.x + 10,
       this.y + 30
     );
-  },
+  } else if (current.question) {
+    ctx.fillText(current.question, this.x + 10, this.y + 30);
+    current.options.forEach((opt, idx) => {
+      const prefix = this.selectedOptionIndex === idx ? "> " : "  ";
+      ctx.fillText(
+        prefix + opt.text,
+        this.x + 10,
+        this.y + 60 + idx * 20
+      );
+    });
+  }
+},
+
 
   nextLine() {
     if (!this.visible) return;
@@ -167,11 +226,7 @@ const DialogueManager = {
   },
 };
 
-window.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    DialogueManager.nextLine();
-  }
-});
+
 
 
 
@@ -222,9 +277,29 @@ function update(dt) {
   moveBody("ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", playerValues, dt);
 
   if (isColliding(playerValues, wall) && keyJustPressed["z"]) {
-    console.log("Collision detected!");
-    DialogueManager.start(dialogues.wall);
+    DialogueManager.start([
+      "You sense something behind this wall...",
+      {
+        question: "Push it?",
+        options: [
+          {
+            text: "Yes",
+            consequence: () => {
+              console.log("Secret door opens!");
+            },
+          },
+          {
+            text: "No",
+            consequence: () => {
+              console.log("You step back.");
+            },
+          },
+        ],
+      },
+      "Interesting choice.",
+    ]);
   }
+
 
   if (isColliding(playerValues, oldTree) && keyJustPressed["z"]) {
     console.log("You found an old tree!");
